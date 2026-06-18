@@ -1,0 +1,8 @@
+{
+    "name": "errorcodeQQ Repo",
+    "description": "errorcodeQQ Cloudstream Extension Repository",
+    "manifestVersion": 1,
+    "pluginLists": [
+        "https://raw.githubusercontent.com/errorcode26/errorcodeQQ/refs/heads/builds/plugins.json"
+    ]
+}

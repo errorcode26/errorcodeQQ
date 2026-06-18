@@ -1,0 +1,141 @@
+[
+    {
+        "url": "https://raw.githubusercontent.com/errorcode26/errorcodeQQ/builds/BinTV.cs3",
+        "status": 1,
+        "version": 1,
+        "name": "BinTV",
+        "internalName": "BinTV",
+        "authors": [
+            "errorcodeQQ"
+        ],
+        "description": "Live sports streams from BinTV.",
+        "fileSize": 61591,
+        "repositoryUrl": "https://github.com/errorcode26/errorcodeQQ",
+        "language": "en",
+        "tvTypes": [
+            "Live"
+        ],
+        "iconUrl": "https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEhsQsag_KQPokaomZsgDV4fiXQ_fi494N6wV8cwKyQQuhSnOh1pAl4lV2Ur-yHCG6IFBimoeWaZKiOTQyyEmfYLetghJRbhyoTHZuzfbZ9VOWZV5aNE4L4akyYmk5D1sB-QLzVQLy200JxziBg0Wwetdxb0Ybf7oqv4R1W8t49rsYLsFkLHZuNPL42I8Q/s512/letter-b.png",
+        "apiVersion": 1,
+        "fileHash": "sha256-36e7463131fd6ce47d3e22885a6e20c669da2a85bf83954f9b352b626188e62e"
+    },
+    {
+        "url": "https://raw.githubusercontent.com/errorcode26/errorcodeQQ/builds/DiviCast.cs3",
+        "status": 1,
+        "version": 1,
+        "name": "DiviCast",
+        "internalName": "DiviCast",
+        "authors": [
+            "errorcodeQQ"
+        ],
+        "description": "Watch movies and TV series from DiviCast",
+        "fileSize": 36283,
+        "repositoryUrl": "https://github.com/errorcode26/errorcodeQQ",
+        "language": "en",
+        "tvTypes": [
+            "Movie",
+            "TvSeries"
+        ],
+        "iconUrl": "https://www.google.com/s2/favicons?domain=divicast.study&sz=64",
+        "apiVersion": 1,
+        "fileHash": "sha256-27fed318f4a1ecd1e5a9c005bf668dcc7c2974f16a90bd2202c99c90fe985900"
+    },
+    {
+        "url": "https://raw.githubusercontent.com/errorcode26/errorcodeQQ/builds/ExampleProvider.cs3",
+        "status": 1,
+        "version": 1,
+        "name": "ExampleProvider",
+        "internalName": "ExampleProvider",
+        "authors": [
+            "author"
+        ],
+        "description": "Example Provider Template",
+        "fileSize": 6263,
+        "repositoryUrl": "https://github.com/errorcode26/errorcodeQQ",
+        "language": "en",
+        "tvTypes": [
+            "Movie",
+            "TvSeries",
+            "Anime",
+            "AnimeMovie"
+        ],
+        "apiVersion": 1,
+        "fileHash": "sha256-af64aea5597dbffea640d275afe053499d03c33177163a97621c590e00f4b7cd",
+        "jarFileSize": 27600,
+        "jarUrl": "https://raw.githubusercontent.com/errorcode26/errorcodeQQ/builds/ExampleProvider.jar",
+        "jarHash": "sha256-5a4d3ca21d2d69d7690243f8f3b1255c85d5710391e6a33bcd4622a50d1b5cdc"
+    },
+    {
+        "url": "https://raw.githubusercontent.com/errorcode26/errorcodeQQ/builds/MkVBase.cs3",
+        "status": 1,
+        "version": 1,
+        "name": "MkVBase",
+        "internalName": "MkVBase",
+        "authors": [
+            "errorcodeQQ"
+        ],
+        "description": "MkVBase \u2014 search aggregator for the 'Private Link Vault'. Returns file-host links (GDFlix, HubCloud) and resolves them via bundled extractors. TMDB metadata auto-loaded.",
+        "fileSize": 62823,
+        "repositoryUrl": "https://github.com/errorcode26/errorcodeQQ",
+        "language": "en",
+        "tvTypes": [
+            "Movie",
+            "TvSeries",
+            "Anime",
+            "Others"
+        ],
+        "iconUrl": "https://mkvbase.site/logo.png",
+        "apiVersion": 1,
+        "fileHash": "sha256-8c9f87a50d2085eeb41d490a70fbddd28c8a907fc635c59eff329c8b2f6d74bd",
+        "jarFileSize": 332757,
+        "jarUrl": "https://raw.githubusercontent.com/errorcode26/errorcodeQQ/builds/MkVBase.jar",
+        "jarHash": "sha256-6fd50092c9da47ffd6e1b3e8ac965cbcd3b8e5ceb7c94b784a7faf9ca81d66f2"
+    },
+    {
+        "url": "https://raw.githubusercontent.com/errorcode26/errorcodeQQ/builds/MoviezWap.cs3",
+        "status": 1,
+        "version": 1,
+        "name": "MoviezWap",
+        "internalName": "MoviezWap",
+        "authors": [
+            "errorcodeQQ"
+        ],
+        "description": "MoviezWap Provider",
+        "fileSize": 28736,
+        "repositoryUrl": "https://github.com/errorcode26/errorcodeQQ",
+        "language": "te",
+        "tvTypes": [
+            "Movie",
+            "TvSeries"
+        ],
+        "apiVersion": 1,
+        "fileHash": "sha256-f5ef39e057f7cf2a50fd64bc86b618a893f3697b3457868605004cada8bf4528",
+        "jarFileSize": 115166,
+        "jarUrl": "https://raw.githubusercontent.com/errorcode26/errorcodeQQ/builds/MoviezWap.jar",
+        "jarHash": "sha256-aa08ddf518aeedf91210b0094216af964715362a1cfa52e3e0986448b4b5a52c"
+    },
+    {
+        "url": "https://raw.githubusercontent.com/errorcode26/errorcodeQQ/builds/Movish.cs3",
+        "status": 1,
+        "version": 1,
+        "name": "Movish",
+        "internalName": "Movish",
+        "authors": [
+            "errorcodeQQ"
+        ],
+        "description": "Movish Provider",
+        "fileSize": 41118,
+        "repositoryUrl": "https://github.com/errorcode26/errorcodeQQ",
+        "language": "en",
+        "tvTypes": [
+            "Movie",
+            "TvSeries",
+            "Live"
+        ],
+        "apiVersion": 1,
+        "fileHash": "sha256-c054e02eda83d24762e7b17da55fb6d0919ed894f0fb0553c17b9abf0730f289",
+        "jarFileSize": 174546,
+        "jarUrl": "https://raw.githubusercontent.com/errorcode26/errorcodeQQ/builds/Movish.jar",
+        "jarHash": "sha256-a074a244a9f31ec38d03dba50a3adb0e37947a761dfceafea469165e2e230e6c"
+    }
+]
