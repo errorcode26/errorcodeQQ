@@ -1,0 +1,40 @@
+# Gradle caches and build outputs
+.gradle
+/build
+**/build
+
+# Local configuration files
+local.properties
+/local.properties
+
+# IDE files
+.idea
+/.idea
+*.iml
+.vscode
+.kotlin
+
+# Log files
+*.log
+
+# OS files
+.DS_Store
+
+# Cloudstream built packages
+*.cs3
+
+# Python helper scripts
+*.py
+
+
+
+
+
+# CS3 plugin development guide
+cs3_plugin_development_guide.md
+cs3 plugin development guide.md
+cs3_plugin_development_guide_recovered.md
+cs3_plugin_development_guide_recovered_full.md
+
+jdk17*
+
