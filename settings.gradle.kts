@@ -1,3 +1,15 @@
+pluginManagement {
+    repositories {
+        gradlePluginPortal()
+        google()
+        mavenCentral()
+    }
+}
+
+plugins {
+    id("org.gradle.toolchains.foojay-resolver-convention") version "1.0.0"
+}
+
 rootProject.name = "CloudstreamPlugins"
 
 // This file dynamically includes all plugin projects in the repository.

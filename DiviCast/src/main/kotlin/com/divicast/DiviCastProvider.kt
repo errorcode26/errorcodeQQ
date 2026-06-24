@@ -493,6 +493,7 @@ class DiviCastProvider : MainAPI() {
         return "DiviCast [$hostLabel]"
     }
 
+    @android.annotation.SuppressLint("NewApi")
     private fun base64Decode(str: String): ByteArray {
         return try {
             Base64.decode(str, Base64.DEFAULT)

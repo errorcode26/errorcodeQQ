@@ -14,7 +14,7 @@ buildscript {
 
     dependencies {
         classpath("com.android.tools.build:gradle:9.1.1")
-        classpath("com.github.recloudstream.gradle:gradle:81b1d424d")
+        classpath("com.github.recloudstream.gradle:gradle:69fdb8fc")
         classpath("org.jetbrains.kotlin:kotlin-gradle-plugin:2.4.0")
     }
 }
@@ -47,10 +47,11 @@ subprojects {
     cloudstream {
         // when running through github workflow, GITHUB_REPOSITORY should contain current repository name
         setRepo(System.getenv("GITHUB_REPOSITORY") ?: "errorcode26/errorcodeQQ")
+        authors = listOf("errorcode26")
     }
 
     android {
-        namespace = "com.example"
+        namespace = "com.errorcode26"
         compileSdk = 36
 
         defaultConfig {

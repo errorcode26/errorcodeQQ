@@ -4,11 +4,17 @@ import com.lagradost.cloudstream3.*
 import com.lagradost.cloudstream3.utils.*
 import com.lagradost.cloudstream3.utils.AppUtils.parseJson
 import com.lagradost.cloudstream3.utils.AppUtils.toJson
+import com.lagradost.cloudstream3.network.CloudflareKiller
+import com.lagradost.cloudstream3.network.WebViewResolver
 import com.fasterxml.jackson.annotation.JsonProperty
 import java.net.ServerSocket
 import java.net.Socket
 import kotlin.concurrent.thread
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.Dispatchers
+import kotlin.coroutines.suspendCoroutine
+import kotlin.coroutines.resume
 
 class BinTVProvider : MainAPI() {
 
@@ -122,6 +128,86 @@ class BinTVProvider : MainAPI() {
         }
     }
 
+    private suspend fun loadUrlViaWebView(url: String): String? {
+        val ctx = context ?: return null
+        return withContext(Dispatchers.Main) {
+            suspendCoroutine { continuation ->
+                try {
+                    val webView = android.webkit.WebView(ctx)
+                    val settings = webView.settings
+                    settings.javaScriptEnabled = true
+                    settings.domStorageEnabled = true
+                    settings.databaseEnabled = true
+                    settings.userAgentString = "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36"
+
+                    var resumed = false
+
+                    webView.webViewClient = object : android.webkit.WebViewClient() {
+                        override fun onPageFinished(view: android.webkit.WebView?, pageUrl: String?) {
+                            super.onPageFinished(view, pageUrl)
+                            if (resumed) return
+                            
+                            android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                                if (!resumed) {
+                                    webView.evaluateJavascript("(function() { return document.body ? document.body.innerText : document.documentElement.outerHTML; })()") { result ->
+                                        if (!resumed) {
+                                            resumed = true
+                                            val cleanedResult = if (result != null && result.startsWith("\"") && result.endsWith("\"")) {
+                                                try {
+                                                    com.fasterxml.jackson.databind.ObjectMapper().readValue(result, String::class.java)
+                                                } catch (e: Exception) {
+                                                    result
+                                                }
+                                            } else {
+                                                result
+                                            }
+                                            
+                                            try {
+                                                webView.destroy()
+                                            } catch (e: Exception) {}
+                                            continuation.resume(cleanedResult)
+                                        }
+                                    }
+                                }
+                            }, 500)
+                        }
+
+                        override fun onReceivedError(
+                            view: android.webkit.WebView?,
+                            request: android.webkit.WebResourceRequest?,
+                            error: android.webkit.WebResourceError?
+                        ) {
+                            super.onReceivedError(view, request, error)
+                            if (resumed) return
+                            resumed = true
+                            try {
+                                webView.destroy()
+                            } catch (e: Exception) {}
+                            continuation.resume(null)
+                        }
+                    }
+
+                    webView.loadUrl(url)
+
+                    android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                        if (!resumed) {
+                            resumed = true
+                            try {
+                                webView.destroy()
+                            } catch (e: Exception) {}
+                            continuation.resume(null)
+                        }
+                    }, 8000)
+                } catch (e: Exception) {
+                    println("BinTV: loadUrlViaWebView exception: ${e.message}")
+                    try {
+                        continuation.resume(null)
+                    } catch (ex: Exception) {}
+                }
+            }
+        }
+    }
+
     override suspend fun getMainPage(
         page: Int,
         request: MainPageRequest
@@ -203,96 +289,50 @@ class BinTVProvider : MainAPI() {
 
         // Fetch PPV matches
         val ppvMatches = mutableListOf<EventLoadData>()
-        try {
-            val ppvText = app.get("https://old.ppv.to/api/streams", timeout = 15L).text
-            val ppvResponse = parseJson<PpvStreamsResponse>(ppvText)
-            if (ppvResponse.success && !ppvResponse.streams.isNullOrEmpty()) {
-                val now = System.currentTimeMillis()
-                ppvResponse.streams.forEach { group ->
-                    if (group.category == "24/7 Streams") return@forEach
-                    group.streams?.forEach { stream ->
-                        val name = stream.name ?: ""
-                        if (name.isBlank()) return@forEach
-                        val startMs = (stream.starts_at ?: 0) * 1000L
-                        val endMs = (stream.ends_at ?: 0) * 1000L
-                        // Filter ended matches
-                        if (stream.ends_at != null && endMs < now - 600000L) return@forEach
+        val ppvHeaders = mapOf(
+            "User-Agent" to "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36",
+            "Referer" to "https://www.bintv.net/",
+            "Origin" to "https://www.bintv.net"
+        )
 
-                        val iframes = mutableListOf<MatchSource>()
-                        if (!stream.iframe.isNullOrBlank()) {
-                            // Get stream name
-                            val mainName = stream.source_tag?.takeIf { it.isNotBlank() } ?: "Main"
-                            iframes.add(MatchSource(mainName, stream.iframe))
-                        }
-                        stream.substreams?.forEachIndexed { subIdx, sub ->
-                            if (!sub.iframe.isNullOrBlank() && iframes.none { it.url == sub.iframe }) {
-                                // Get fallback name
-                                val rawName = sub.uri_name?.takeIf { it.isNotBlank() }
-                                    ?: sub.source_tag?.takeIf { it.isNotBlank() }
-                                    ?: sub.name?.takeIf { it.isNotBlank() }
-                                    ?: "Server ${subIdx + 1}"
-                                // Normalize name
-                                val prettyName = rawName
-                                    .split("-").joinToString(" ") { part ->
-                                        if (part.length <= 3) part.uppercase()
-                                        else part.replaceFirstChar { it.uppercase() }
-                                    }
-                                iframes.add(MatchSource(prettyName, sub.iframe))
-                            }
-                        }
+        println("BinTV: Fetching PPV matches via loadUrlViaWebView...")
+        val ppvText = loadUrlViaWebView("https://api.ppv.to/api/streams") ?: ""
+        println("BinTV: loadUrlViaWebView response length: ${ppvText.length}")
+        if (ppvText.length > 500) {
+            println("BinTV: loadUrlViaWebView response snippet: ${ppvText.substring(0, 500)}")
+        } else {
+            println("BinTV: loadUrlViaWebView response snippet: $ppvText")
+        }
 
-                        if (iframes.isEmpty()) return@forEach
-
-                        val numberedSources = iframes.mapIndexed { idx, src ->
-                            MatchSource(
-                                name = "${src.name} [${idx + 1}]",
-                                url = src.url
-                            )
-                        }
-
-                        ppvMatches.add(
-                            EventLoadData(
-                                title = name,
-                                poster = stream.poster,
-                                date = startMs,
-                                endsAt = endMs,
-                                category = stream.category_name ?: group.category ?: "Other",
-                                sources = numberedSources,
-                                isPPV = true,
-                                isBinTV = false
-                            )
-                        )
-                    }
-                }
-            }
-        } catch (e: Exception) {
-            println("BinTV: failed to load PPV matches - ${e.message}")
-            // Fallback API
+        if (ppvText.isNotBlank()) {
             try {
-                val fallbackText = app.get("https://api.ppv.to/api/streams", timeout = 15L).text
-                val fallbackResponse = parseJson<PpvStreamsResponse>(fallbackText)
-                if (fallbackResponse.success && !fallbackResponse.streams.isNullOrEmpty()) {
+                val ppvResponse = parseJson<PpvStreamsResponse>(ppvText)
+                if (ppvResponse.success && !ppvResponse.streams.isNullOrEmpty()) {
                     val now = System.currentTimeMillis()
-                    fallbackResponse.streams.forEach { group ->
+                    ppvResponse.streams.forEach { group ->
                         if (group.category == "24/7 Streams") return@forEach
                         group.streams?.forEach { stream ->
                             val name = stream.name ?: ""
                             if (name.isBlank()) return@forEach
                             val startMs = (stream.starts_at ?: 0) * 1000L
                             val endMs = (stream.ends_at ?: 0) * 1000L
+                            // Filter ended matches
                             if (stream.ends_at != null && endMs < now - 600000L) return@forEach
 
                             val iframes = mutableListOf<MatchSource>()
                             if (!stream.iframe.isNullOrBlank()) {
+                                // Get stream name
                                 val mainName = stream.source_tag?.takeIf { it.isNotBlank() } ?: "Main"
                                 iframes.add(MatchSource(mainName, stream.iframe))
                             }
                             stream.substreams?.forEachIndexed { subIdx, sub ->
                                 if (!sub.iframe.isNullOrBlank() && iframes.none { it.url == sub.iframe }) {
+                                    // Get fallback name
                                     val rawName = sub.uri_name?.takeIf { it.isNotBlank() }
                                         ?: sub.source_tag?.takeIf { it.isNotBlank() }
                                         ?: sub.name?.takeIf { it.isNotBlank() }
                                         ?: "Server ${subIdx + 1}"
+                                    // Normalize name
                                     val prettyName = rawName
                                         .split("-").joinToString(" ") { part ->
                                             if (part.length <= 3) part.uppercase()
@@ -301,10 +341,16 @@ class BinTVProvider : MainAPI() {
                                     iframes.add(MatchSource(prettyName, sub.iframe))
                                 }
                             }
+
                             if (iframes.isEmpty()) return@forEach
+
                             val numberedSources = iframes.mapIndexed { idx, src ->
-                                MatchSource(name = "${src.name} [${idx + 1}]", url = src.url)
+                                MatchSource(
+                                    name = "${src.name} [${idx + 1}]",
+                                    url = src.url
+                                )
                             }
+
                             ppvMatches.add(
                                 EventLoadData(
                                     title = name,
@@ -320,8 +366,8 @@ class BinTVProvider : MainAPI() {
                         }
                     }
                 }
-            } catch (fallbackErr: Exception) {
-                println("BinTV: PPV fallback also failed - ${fallbackErr.message}")
+            } catch (e: Exception) {
+                println("BinTV: failed to parse PPV JSON - ${e.message}")
             }
         }
 
@@ -561,14 +607,19 @@ class BinTVProvider : MainAPI() {
                     val isEmbedIndia = embedUrl.contains("embedindia.st", ignoreCase = true)
                     if (isEmbedIndia) {
                         try {
-                            val extractor = com.bintv.EmbedIndiaExtractor()
-                            extractor.getUrl(
-                                url = embedUrl,
-                                referer = "${embedHost ?: "https://bintv.net"}/",
-                                subtitleCallback = subtitleCallback,
-                                callback = callback
-                            )
-                            foundAny = true
+                            val ctx = context
+                            if (ctx != null) {
+                                val extractor = com.bintv.EmbedIndiaExtractor(ctx)
+                                extractor.getUrl(
+                                    url = embedUrl,
+                                    referer = "${embedHost ?: "https://bintv.net"}/",
+                                    subtitleCallback = subtitleCallback,
+                                    callback = callback
+                                )
+                                foundAny = true
+                            } else {
+                                println("BinTV: EmbedIndiaExtractor failed - static context is null")
+                            }
                         } catch (e: Exception) {
                             println("BinTV: EmbedIndiaExtractor failed for $embedUrl - ${e.message}")
                         }
@@ -579,11 +630,20 @@ class BinTVProvider : MainAPI() {
                             "Origin" to (embedHost ?: "https://bintv.net")
                         )
 
-                        val embedHtml = try {
-                            app.get(embedUrl, headers = fetchHeaders, timeout = 20L).text
+                        var embedHtml = ""
+                        try {
+                            val res = app.get(embedUrl, headers = fetchHeaders, timeout = 20L)
+                            embedHtml = res.text
+                            if (embedHtml.contains("Just a moment") || res.code == 403) {
+                                embedHtml = app.get(embedUrl, headers = fetchHeaders, interceptor = cfInterceptor, timeout = 20L).text
+                            }
                         } catch (fetchErr: Exception) {
                             println("BinTV: Failed to fetch embed page $embedUrl - ${fetchErr.message}")
-                            ""
+                            try {
+                                embedHtml = app.get(embedUrl, headers = fetchHeaders, interceptor = cfInterceptor, timeout = 20L).text
+                            } catch (cfErr: Exception) {
+                                println("BinTV: Failed to fetch embed page with CloudflareKiller - ${cfErr.message}")
+                            }
                         }
 
                         // Search for m3u8 links
@@ -639,6 +699,8 @@ class BinTVProvider : MainAPI() {
     }
 
     companion object {
+        var context: android.content.Context? = null
+        private val cfInterceptor = CloudflareKiller()
         private var serverSocket: ServerSocket? = null
         private var port: Int = 0
 
@@ -671,12 +733,14 @@ class BinTVProvider : MainAPI() {
             }
         }
 
-        private fun getProxiedM3u8Url(m3u8Url: String, referer: String): String {
+        fun getProxiedM3u8Url(m3u8Url: String, referer: String, userAgent: String? = null): String {
             startProxy()
             val formattedReferer = if (referer.endsWith("/")) referer else "$referer/"
             val encodedUrl = java.net.URLEncoder.encode(m3u8Url, "UTF-8")
             val encodedReferer = java.net.URLEncoder.encode(formattedReferer, "UTF-8")
-            return "http://127.0.0.1:$port/playlist.m3u8?referer=$encodedReferer&url=$encodedUrl"
+            val encodedUa = userAgent?.let { java.net.URLEncoder.encode(it, "UTF-8") }
+            val uaParam = if (encodedUa != null) "&ua=$encodedUa" else ""
+            return "http://127.0.0.1:$port/playlist.m3u8?referer=$encodedReferer&url=$encodedUrl$uaParam"
         }
 
         private fun getBaseUrl(url: String): String {
@@ -718,12 +782,13 @@ class BinTVProvider : MainAPI() {
                 if (path.startsWith("/playlist.m3u8")) {
                     val targetUrl = getQueryParam(path, "url") ?: return
                     val referer = getQueryParam(path, "referer") ?: getBaseUrl(targetUrl)
+                    val userAgent = getQueryParam(path, "ua") ?: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36"
 
                     val response = runBlocking {
                         app.get(
                             targetUrl,
                             headers = mapOf(
-                                "User-Agent" to "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
+                                "User-Agent" to userAgent,
                                 "Referer" to referer
                             ),
                             timeout = 30L
@@ -753,11 +818,13 @@ class BinTVProvider : MainAPI() {
                             }
                             val encodedUrl = java.net.URLEncoder.encode(absoluteUrl, "UTF-8")
                             val encodedReferer = java.net.URLEncoder.encode(referer, "UTF-8")
+                            val encodedUa = java.net.URLEncoder.encode(userAgent, "UTF-8")
+                            val uaParam = "&ua=$encodedUa"
 
                             val proxiedUri = if (absoluteUrl.substringBefore("?").endsWith(".m3u8", ignoreCase = true)) {
-                                "http://127.0.0.1:$port/playlist.m3u8?referer=$encodedReferer&url=$encodedUrl"
+                                "http://127.0.0.1:$port/playlist.m3u8?referer=$encodedReferer&url=$encodedUrl$uaParam"
                             } else {
-                                "http://127.0.0.1:$port/proxy?referer=$encodedReferer&url=$encodedUrl"
+                                "http://127.0.0.1:$port/proxy?referer=$encodedReferer&url=$encodedUrl$uaParam"
                             }
                             "${preUri}URI=\"$proxiedUri\"$postUri"
                         } else {
@@ -771,11 +838,13 @@ class BinTVProvider : MainAPI() {
                             }
                             val encodedUrl = java.net.URLEncoder.encode(absoluteUrl, "UTF-8")
                             val encodedReferer = java.net.URLEncoder.encode(referer, "UTF-8")
+                            val encodedUa = java.net.URLEncoder.encode(userAgent, "UTF-8")
+                            val uaParam = "&ua=$encodedUa"
 
                             val result = if (isStreamInf || absoluteUrl.substringBefore("?").endsWith(".m3u8", ignoreCase = true)) {
-                                "http://127.0.0.1:$port/playlist.m3u8?referer=$encodedReferer&url=$encodedUrl"
+                                "http://127.0.0.1:$port/playlist.m3u8?referer=$encodedReferer&url=$encodedUrl$uaParam"
                             } else {
-                                "http://127.0.0.1:$port/proxy?referer=$encodedReferer&url=$encodedUrl"
+                                "http://127.0.0.1:$port/proxy?referer=$encodedReferer&url=$encodedUrl$uaParam"
                             }
                             isStreamInf = false
                             result
@@ -795,12 +864,13 @@ class BinTVProvider : MainAPI() {
                 } else if (path.startsWith("/proxy")) {
                     val targetUrl = getQueryParam(path, "url") ?: return
                     val referer = getQueryParam(path, "referer") ?: getBaseUrl(targetUrl)
+                    val userAgent = getQueryParam(path, "ua") ?: "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36"
 
                     val response = runBlocking {
                         app.get(
                             targetUrl,
                             headers = mapOf(
-                                "User-Agent" to "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36",
+                                "User-Agent" to userAgent,
                                 "Referer" to referer
                             ),
                             timeout = 30L

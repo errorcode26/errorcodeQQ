@@ -26,7 +26,7 @@ cloudstream {
 }
 
 android {
-    namespace = "com.example"
+    namespace = "com.errorcode26"
     buildFeatures {
         buildConfig = true
         viewBinding = false
