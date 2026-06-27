@@ -22,3 +22,6 @@ Built on AGP 9.1.1 and Kotlin 2.4.0.
 This project is strictly for educational, research, and development purposes. **No media files are hosted, stored, or distributed by this repository.** All data is parsed from public endpoints via user-agent requests. 
 
 For full legal compliance details, read our [DMCA & Disclaimer Notice](DMCA.md).
+
+
+ this is vibecoded garbage stay away 
